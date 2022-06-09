@@ -72,14 +72,11 @@ class ArInfo(object):
         # 48  10  File size in bytes              Decimal
         # 58  2   File magic                      0x60 0x0A
         name, mtime, uid, gid, perms, size, magic = (struct.unpack('16s12s6s6s8s10s2s', buffer))
-        name = utf8(name).rstrip(b' ')
-        mtime = int(mtime, 10)
-        uid = int(uid, 10)
-        gid = int(gid, 10)
-        perms = int(perms, 8)
-        size = int(size, 10)
         if magic != b'\x60\n':
             raise ValueError("Invalid file signature")
+        name = utf8(name).rstrip(b' ')
+        bases = (10, 10, 10, 8, 10)
+        mtime, uid, gid, perms, size = ((int(el, base) if el else None) for el, base in zip((el.strip() for el in (mtime, uid, gid, perms, size)), bases))
         return cls(name, size, mtime, perms, uid, gid)
 
     def tobuffer(self):

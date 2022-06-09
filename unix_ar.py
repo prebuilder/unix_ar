@@ -332,9 +332,11 @@ class ArFile(object):
             member = self._entries[index]
             self._extract(member, os.path.join(utf8(path), member.name))
 
-    def open(self, member: str) -> io.BytesIO:
+    def open(self, member: typing.Union[str, bytes, "pathlib.PurePath", ArInfo]) -> io.BytesIO:
+        if not isinstance(member, (ArInfo, bytes)):
+            member = bytes(str(member))
         filelike = self.extract(member, path=io.BytesIO())
-        filelike.name = member.strip('/')
+        filelike.name = member.strip(b'/')
         return filelike
 
     def close(self) -> None:

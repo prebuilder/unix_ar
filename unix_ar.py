@@ -1,6 +1,7 @@
 import os
 import io
 import struct
+import typing
 
 __version__ = '0.2.1'
 
@@ -9,7 +10,7 @@ _open = open
 CHUNKSIZE = 4096
 
 
-def utf8(s):
+def utf8(s: typing.Union[str, bytes]) -> bytes:
     """
     Keeps bytes, converts unicode into UTF-8.
 
@@ -42,7 +43,7 @@ class ArInfo(object):
     file will be extracted with the new name (and new metadata).
     """
 
-    def __init__(self, name, size=None, mtime=None, perms=None, uid=None, gid=None):
+    def __init__(self, name: typing.Union[str, bytes], size: typing.Optional[int]=None, mtime: typing.Optional[int]=None, perms: typing.Optional[int]=None, uid: typing.Optional[int]=None, gid: typing.Optional[int]=None) -> None:
         self.name = name
         self.size = size
         self.mtime = mtime
@@ -60,7 +61,7 @@ class ArInfo(object):
         self._name = utf8(value)
 
     @classmethod
-    def frombuffer(cls, buffer):
+    def frombuffer(cls, buffer: bytes) -> "ArInfo":
         """
         Decode the archive header.
         """
@@ -79,7 +80,7 @@ class ArInfo(object):
         mtime, uid, gid, perms, size = ((int(el, base) if el else None) for el, base in zip((el.strip() for el in (mtime, uid, gid, perms, size)), bases))
         return cls(name, size, mtime, perms, uid, gid)
 
-    def tobuffer(self):
+    def tobuffer(self) -> bytes:
         """
         Encode as an archive header.
         """
@@ -91,7 +92,7 @@ class ArInfo(object):
             ).encode('iso-8859-1')
         )
 
-    def updatefromdisk(self, path=None):
+    def updatefromdisk(self, path: typing.Optional[str]=None) -> "ArInfo":
         """
         Fill in the missing attributes from an actual file.
 
@@ -124,7 +125,7 @@ class ArInfo(object):
             gid = stat.st_gid
         return self.__class__(name, size, mtime, perms, uid, gid)
 
-    def __copy__(self):
+    def __copy__(self) -> "ArInfo":
         member = self.__class__(self._name, self.size, self.mtime, self.perms, self.uid, self.gid)
         member.offset = self.offset
         return member
@@ -137,7 +138,7 @@ class ArFile(object):
     This object allows you to either read or write an AR archive.
     """
 
-    def __init__(self, file, mode='r'):
+    def __init__(self, file: io.IOBase, mode: str='r') -> None:
         """
         Create an `ArFile` from an opened file (in 'rb' or 'wb' mode).
 
@@ -152,7 +153,7 @@ class ArFile(object):
         else:
             raise ValueError("mode must be one of 'r' or 'w'")
 
-    def _read_entries(self):
+    def _read_entries(self) -> None:
         if self._file.read(8) != b'!<arch>\n':
             raise ValueError("Invalid archive signature")
 
@@ -177,7 +178,7 @@ class ArFile(object):
                     continue
             raise ValueError("Truncated archive?")
 
-    def _check(self, expected_mode):
+    def _check(self, expected_mode: str) -> None:
         if self._file is None:
             raise ValueError("Attempted to use a closed %s" % self.__class__.__name__)
         if self._mode != expected_mode:
@@ -186,7 +187,7 @@ class ArFile(object):
             else:
                 raise ValueError("Can't read from a write-only archive")
 
-    def add(self, name, arcname=None):
+    def add(self, name: str, arcname: typing.Optional[str]=None) -> None:
         """
         Add a file to the archive.
 
@@ -205,7 +206,7 @@ class ArFile(object):
         with _open(name, 'rb') as fp:
             self.addfile(arcname, fp)
 
-    def addfile(self, name, fileobj=None):
+    def addfile(self, name: typing.Union[str, ArInfo], fileobj: io.IOBase=None) -> None:
         """
         Add a file to the archive from a file object.
 
@@ -237,7 +238,7 @@ class ArFile(object):
         if fileobj is None:
             fp.close()
 
-    def infolist(self):
+    def infolist(self) -> typing.List[ArInfo]:
         """
         Return a list of :class:`~unix_ar.ArInfo` for files in the archive.
 
@@ -249,7 +250,7 @@ class ArFile(object):
         self._check('r')
         return list(i.__copy__() for i in self._entries)
 
-    def getinfo(self, member):
+    def getinfo(self, member: typing.Union[str, ArInfo, bytes]) -> ArInfo:
         """
         Return an :class:`~unix_ar.ArInfo` for a specific file.
 
@@ -273,7 +274,7 @@ class ArFile(object):
             index = self._name_map[utf8(member)]
             return self._entries[index].__copy__()
 
-    def _extract(self, member, path):
+    def _extract(self, member: ArInfo, path: bytes) -> io.IOBase:
         if hasattr(path, 'write'):
             fp = path
         else:
@@ -287,7 +288,7 @@ class ArFile(object):
         fp.seek(0)
         return fp
 
-    def extract(self, member, path='') -> 'filelike':
+    def extract(self, member: typing.Union[str, ArInfo], path: typing.Union[str, bytes]='') -> 'filelike':
         """
         Extract a single file from the archive.
 
@@ -317,7 +318,7 @@ class ArFile(object):
         self._check('r')
         raise NotImplementedError("extractfile() is not yet implemented")
 
-    def extractall(self, path=''):
+    def extractall(self, path: str='') -> None:
         """
         Extract all the files in the archive.
 
@@ -336,7 +337,7 @@ class ArFile(object):
         filelike.name = member.strip('/')
         return filelike
 
-    def close(self):
+    def close(self) -> None:
         """
         Close this archive and the underlying file.
 
@@ -349,7 +350,7 @@ class ArFile(object):
             self._name_map = None
 
 
-def open(file, mode='r'):
+def open(file: str, mode: str='r') -> ArFile:
     """
     Open an archive file.
 
